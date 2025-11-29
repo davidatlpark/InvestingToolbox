@@ -18,12 +18,11 @@ import {
   Select,
   MenuItem,
   Button,
-  CircularProgress,
   Alert,
   Chip,
-  TextField,
   Pagination,
 } from '@mui/material';
+import { ScreenerTableSkeleton } from '../components/TableSkeleton';
 import { useState } from 'react';
 import { screenerApi, type ScreenerResult } from '../lib/api';
 import { getScoreColor } from '../theme';
@@ -60,9 +59,23 @@ function ScreenerPage() {
         Filter stocks by Rule One metrics to find wonderful businesses at attractive prices.
       </Typography>
 
-      <Box sx={{ display: 'flex', gap: 3 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 3,
+          // Stack vertically on mobile, side by side on larger screens
+          flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
         {/* Filters Sidebar */}
-        <Card sx={{ width: 300, flexShrink: 0, height: 'fit-content' }}>
+        <Card
+          sx={{
+            // Full width on mobile, fixed width on desktop
+            width: { xs: '100%', md: 300 },
+            flexShrink: 0,
+            height: 'fit-content',
+          }}
+        >
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Filters
@@ -197,9 +210,12 @@ function ScreenerPage() {
         {/* Results */}
         <Box sx={{ flex: 1 }}>
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <Box component="span" sx={{ display: 'inline-block', width: 200, height: 16, bgcolor: '#e0e0e0', borderRadius: 0.5 }} />
+              </Typography>
+              <ScreenerTableSkeleton />
+            </>
           ) : isError ? (
             <Alert severity="error">
               Failed to load results: {(error as Error).message}
@@ -210,8 +226,18 @@ function ScreenerPage() {
                 Found {data.meta.total} companies matching your criteria
               </Typography>
 
-              <TableContainer component={Paper}>
-                <Table>
+              <TableContainer
+                component={Paper}
+                sx={{
+                  // Enable horizontal scroll on mobile
+                  overflowX: 'auto',
+                  // Prevent table from breaking on small screens
+                  '& .MuiTable-root': {
+                    minWidth: 700,
+                  },
+                }}
+              >
+                <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell>Ticker</TableCell>

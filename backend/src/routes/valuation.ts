@@ -22,6 +22,8 @@ const valuationInputSchema = z.object({
   futurePe: z.number().min(1).max(100).default(20),
   minReturnRate: z.number().min(1).max(50).default(15),
   years: z.number().min(1).max(20).default(10),
+  // Optional: current stock price for payback time and recommendation
+  currentPrice: z.number().positive().optional(),
 });
 
 const tickerParamsSchema = z.object({
@@ -35,13 +37,13 @@ valuationRouter.post('/calculate', validateBody(valuationInputSchema), async (re
   const result = calculateValuation(input);
 
   // Also calculate payback time if we have a price
-  const currentPrice = req.body.currentPrice as number | undefined;
+  // Now currentPrice comes from validated input, not raw body
   let paybackTime = null;
   let recommendation = null;
 
-  if (currentPrice && currentPrice > 0) {
-    paybackTime = calculatePaybackTime(currentPrice, input.currentEps, input.growthRate);
-    recommendation = getRecommendation(currentPrice, result.mosPrice, result.stickerPrice);
+  if (input.currentPrice && input.currentPrice > 0) {
+    paybackTime = calculatePaybackTime(input.currentPrice, input.currentEps, input.growthRate);
+    recommendation = getRecommendation(input.currentPrice, result.mosPrice, result.stickerPrice);
   }
 
   const response: ApiResponse<ValuationResult & { paybackTime: number | null; recommendation: string | null }> = {

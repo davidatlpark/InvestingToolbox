@@ -22,6 +22,8 @@ import {
 } from '@mui/icons-material';
 import { companyApi } from '../lib/api';
 import { getScoreColor, getChangeColor } from '../theme';
+import { BigFiveChart } from '../components/BigFiveChart';
+import { FinancialsTable } from '../components/FinancialsTable';
 
 // Score Card Component
 function ScoreCard({
@@ -155,10 +157,25 @@ function AnalysisPage() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          mb: 3,
+          // Stack vertically on mobile
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 0 },
+        }}
+      >
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="h4" component="h1" fontWeight="bold">
+            <Typography
+              variant="h4"
+              component="h1"
+              fontWeight="bold"
+              sx={{ fontSize: { xs: '1.75rem', sm: '2.125rem' } }}
+            >
               {company.ticker}
             </Typography>
             {!scores.isPredictable && (
@@ -173,12 +190,23 @@ function AnalysisPage() {
           </Typography>
         </Box>
 
-        <Box sx={{ textAlign: 'right' }}>
-          <Typography variant="h4" fontWeight="bold">
+        <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, width: { xs: '100%', sm: 'auto' } }}>
+          <Typography
+            variant="h4"
+            fontWeight="bold"
+            sx={{ fontSize: { xs: '1.75rem', sm: '2.125rem' } }}
+          >
             ${valuation.currentPrice?.toFixed(2) ?? 'N/A'}
           </Typography>
           {priceChange !== null && (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+                gap: 0.5,
+              }}
+            >
               {priceChange > 0 ? (
                 <TrendingUp sx={{ color: getChangeColor(priceChange) }} />
               ) : (
@@ -192,7 +220,15 @@ function AnalysisPage() {
               </Typography>
             </Box>
           )}
-          <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+          <Box
+            sx={{
+              mt: 1,
+              display: 'flex',
+              gap: 1,
+              justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+              flexWrap: 'wrap',
+            }}
+          >
             <Button
               variant="outlined"
               size="small"
@@ -244,6 +280,12 @@ function AnalysisPage() {
                 Target: ≥10% growth for all metrics over 10 years
               </Typography>
 
+              {/* Big Five Chart */}
+              <BigFiveChart data={bigFive} />
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Big Five Table */}
               <Box sx={{ display: 'flex', gap: 4, mb: 2, pl: '150px' }}>
                 <Typography variant="caption" sx={{ width: 80 }}>1 Year</Typography>
                 <Typography variant="caption" sx={{ width: 80 }}>5 Year</Typography>
@@ -360,6 +402,14 @@ function AnalysisPage() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Historical Financials */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Historical Financials
+        </Typography>
+        <FinancialsTable ticker={ticker} />
+      </Box>
 
       {/* Meta Info */}
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3, textAlign: 'right' }}>

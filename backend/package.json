@@ -17,7 +17,12 @@
     "test": "vitest",
     "test:run": "vitest run"
   },
-  "keywords": ["investing", "value-investing", "rule-one", "stock-analysis"],
+  "keywords": [
+    "investing",
+    "value-investing",
+    "rule-one",
+    "stock-analysis"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -36,7 +41,9 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.3",
     "prisma": "^6.0.0",
+    "supertest": "^7.1.4",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

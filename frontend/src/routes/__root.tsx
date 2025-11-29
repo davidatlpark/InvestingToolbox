@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 function RootComponent() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,7 +127,9 @@ function RootComponent() {
           py: 3,
         }}
       >
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </Container>
 
       {/* Footer */}
