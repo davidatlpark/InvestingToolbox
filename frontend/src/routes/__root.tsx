@@ -17,6 +17,7 @@ import {
   Leaderboard as LeaderboardIcon,
   BookmarkBorder as WatchlistIcon,
   Calculate as CalculatorIcon,
+  CompareArrows as CompareIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -88,6 +89,14 @@ function RootComponent() {
               startIcon={<CalculatorIcon />}
             >
               Calculator
+            </Button>
+            <Button
+              color="inherit"
+              component={Link}
+              to="/compare"
+              startIcon={<CompareIcon />}
+            >
+              Compare
             </Button>
           </Box>
 

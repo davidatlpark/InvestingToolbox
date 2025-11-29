@@ -314,6 +314,56 @@ companiesRouter.post(
   }
 );
 
+// GET /api/companies/:ticker/scores/history - Get historical score data
+companiesRouter.get(
+  '/:ticker/scores/history',
+  validateParams(tickerParamsSchema),
+  async (req, res) => {
+    const { ticker } = req.params;
+    const limit = Math.min(Number(req.query.limit) || 30, 100); // Default 30 records, max 100
+
+    const company = await prisma.company.findUnique({
+      where: { ticker },
+    });
+
+    if (!company) {
+      throw ApiError.notFound(`Company ${ticker} not found`);
+    }
+
+    // Fetch all historical scores ordered by date
+    const scores = await prisma.companyScore.findMany({
+      where: { companyId: company.id },
+      orderBy: { calculatedAt: 'asc' }, // Oldest first for charting
+      take: limit,
+    });
+
+    /**
+     * WHY return simplified data structure?
+     * - Optimized for charting (time-series format)
+     * - Reduces payload size
+     * - Frontend can easily map to chart data
+     */
+    res.json({
+      success: true,
+      data: scores.map((s) => ({
+        date: s.calculatedAt.toISOString(),
+        valueScore: s.valueScore,
+        roicScore: s.roicScore,
+        moatScore: s.moatScore,
+        debtScore: s.debtScore,
+        managementScore: s.managementScore,
+        currentPrice: s.currentPrice,
+        mosPrice: s.mosPrice,
+        stickerPrice: s.stickerPrice,
+      })),
+      meta: {
+        ticker,
+        count: scores.length,
+      },
+    });
+  }
+);
+
 // GET /api/companies/search - Search companies
 companiesRouter.get('/search', async (req, res) => {
   const query = (req.query.q as string) || '';

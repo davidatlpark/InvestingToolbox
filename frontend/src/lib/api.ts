@@ -358,6 +358,19 @@ export interface FinancialData {
   roic: number | null;
 }
 
+// Score history data point for charting
+export interface ScoreHistoryPoint {
+  date: string;
+  valueScore: number;
+  roicScore: number;
+  moatScore: number;
+  debtScore: number;
+  managementScore: number;
+  currentPrice: number | null;
+  mosPrice: number | null;
+  stickerPrice: number | null;
+}
+
 export const companyApi = {
   getAnalysis: async (ticker: string): Promise<CompanyAnalysis> => {
     const response = await api.get<ApiResponse<CompanyAnalysis>>(`/companies/${ticker}`);
@@ -368,6 +381,22 @@ export const companyApi = {
     const response = await api.get<ApiResponse<FinancialData[]>>(`/companies/${ticker}/financials`, {
       params: { years },
     });
+    return response.data.data;
+  },
+
+  /**
+   * Get historical score data for a company
+   *
+   * WHY track score history?
+   * - Shows how a company's quality metrics change over time
+   * - Helps identify improving or declining businesses
+   * - Useful for timing investment decisions
+   */
+  getScoreHistory: async (ticker: string, limit = 30): Promise<ScoreHistoryPoint[]> => {
+    const response = await api.get<ApiResponse<ScoreHistoryPoint[]>>(
+      `/companies/${ticker}/scores/history`,
+      { params: { limit } }
+    );
     return response.data.data;
   },
 

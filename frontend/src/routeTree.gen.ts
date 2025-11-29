@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as ScreenerRouteImport } from './routes/screener'
+import { Route as CompareRouteImport } from './routes/compare'
 import { Route as CalculatorRouteImport } from './routes/calculator'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalysisTickerRouteImport } from './routes/analysis.$ticker'
@@ -23,6 +24,11 @@ const WatchlistRoute = WatchlistRouteImport.update({
 const ScreenerRoute = ScreenerRouteImport.update({
   id: '/screener',
   path: '/screener',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareRoute = CompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CalculatorRoute = CalculatorRouteImport.update({
@@ -44,6 +50,7 @@ const AnalysisTickerRoute = AnalysisTickerRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calculator': typeof CalculatorRoute
+  '/compare': typeof CompareRoute
   '/screener': typeof ScreenerRoute
   '/watchlist': typeof WatchlistRoute
   '/analysis/$ticker': typeof AnalysisTickerRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calculator': typeof CalculatorRoute
+  '/compare': typeof CompareRoute
   '/screener': typeof ScreenerRoute
   '/watchlist': typeof WatchlistRoute
   '/analysis/$ticker': typeof AnalysisTickerRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/calculator': typeof CalculatorRoute
+  '/compare': typeof CompareRoute
   '/screener': typeof ScreenerRoute
   '/watchlist': typeof WatchlistRoute
   '/analysis/$ticker': typeof AnalysisTickerRoute
@@ -68,15 +77,23 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/calculator'
+    | '/compare'
     | '/screener'
     | '/watchlist'
     | '/analysis/$ticker'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/calculator' | '/screener' | '/watchlist' | '/analysis/$ticker'
+  to:
+    | '/'
+    | '/calculator'
+    | '/compare'
+    | '/screener'
+    | '/watchlist'
+    | '/analysis/$ticker'
   id:
     | '__root__'
     | '/'
     | '/calculator'
+    | '/compare'
     | '/screener'
     | '/watchlist'
     | '/analysis/$ticker'
@@ -85,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalculatorRoute: typeof CalculatorRoute
+  CompareRoute: typeof CompareRoute
   ScreenerRoute: typeof ScreenerRoute
   WatchlistRoute: typeof WatchlistRoute
   AnalysisTickerRoute: typeof AnalysisTickerRoute
@@ -104,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/screener'
       fullPath: '/screener'
       preLoaderRoute: typeof ScreenerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compare': {
+      id: '/compare'
+      path: '/compare'
+      fullPath: '/compare'
+      preLoaderRoute: typeof CompareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/calculator': {
@@ -133,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalculatorRoute: CalculatorRoute,
+  CompareRoute: CompareRoute,
   ScreenerRoute: ScreenerRoute,
   WatchlistRoute: WatchlistRoute,
   AnalysisTickerRoute: AnalysisTickerRoute,

@@ -23,7 +23,7 @@ Build a personal web application for value investing analysis based on Warren Bu
 | Phase 4 | ✅ Complete | API Routes - All endpoints implemented |
 | Phase 5 | ✅ Complete | Frontend Core Pages - All 4 main pages built |
 | Phase 6 | ✅ Complete | Polish & Testing - 109 tests, error handling, responsive UI |
-| Phase 7 | 🔲 Future | Advanced Features |
+| Phase 7 | 🔶 In Progress | Advanced Features - Comparison, CSV export, Alerts, Score History |
 
 ### What's Built
 
@@ -34,6 +34,7 @@ Build a personal web application for value investing analysis based on Warren Bu
 - ✅ Calculator engine (Big Five, Scoring, Valuation)
 - ✅ All API routes (companies, screener, valuation, watchlist, quotes)
 - ✅ 109 tests (83 unit + 26 integration) with Vitest & Supertest
+- ✅ Historical scores API endpoint for tracking score changes
 
 **Frontend:**
 - ✅ Vite + React + TypeScript setup
@@ -44,26 +45,31 @@ Build a personal web application for value investing analysis based on Warren Bu
 - ✅ Screener page with filters and pagination
 - ✅ Watchlist page with add/remove
 - ✅ Valuation Calculator page
+- ✅ **Compare page** - Side-by-side stock comparison (up to 5)
 - ✅ Big Five bar chart (Recharts)
 - ✅ Historical financials table with tabs
 - ✅ Error boundary for crash recovery
 - ✅ Retry logic with exponential backoff
 - ✅ Skeleton loading states
 - ✅ Mobile responsive layouts
+- ✅ **CSV Export** - Export screener results and comparisons
+- ✅ **Price Alerts** - Browser notifications for watchlist targets
+- ✅ **Score History Chart** - Track score changes over time
+- ✅ **24 Component Tests** - React Testing Library tests for key components
 
 ### What's Remaining (Phase 7 - Future)
 
 **Optional Enhancements:**
-- 🔲 Component tests (React Testing Library)
+- ✅ **Component tests (React Testing Library)** - 24 tests for BigFiveChart, ErrorBoundary, TableSkeleton
 - 🔲 E2E tests (Playwright)
 
 **Advanced Features:**
 - 🔲 SEC EDGAR filing viewer (10-K, 10-Q documents)
-- 🔲 Price alerts / notifications
-- 🔲 Batch analysis / export to CSV
+- ✅ **Price alerts / notifications** - Browser notifications on watchlist
+- ✅ **Batch analysis / export to CSV** - Screener and comparison CSV export
 - 🔲 AI-powered analysis (earnings call summaries)
-- 🔲 Historical score tracking over time
-- 🔲 Comparison view for multiple stocks
+- ✅ **Historical score tracking over time** - Score history API and chart
+- ✅ **Comparison view for multiple stocks** - `/compare` page with URL sharing
 
 ---
 

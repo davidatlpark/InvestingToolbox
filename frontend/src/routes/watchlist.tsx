@@ -22,16 +22,37 @@ import {
   DialogContent,
   DialogActions,
   Tooltip,
+  Snackbar,
+  Chip,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
   Add as AddIcon,
   TrendingUp,
   TrendingDown,
+  NotificationsActive as AlertIcon,
+  CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { watchlistApi, type WatchlistItem } from '../lib/api';
 import { getChangeColor, getScoreColor } from '../theme';
+
+/**
+ * Price Alert Types
+ *
+ * WHY browser notifications?
+ * - No backend infrastructure needed for notifications
+ * - Works even when tab is in background
+ * - User controls notification permissions
+ * - Instant feedback when checking prices
+ */
+interface PriceAlert {
+  ticker: string;
+  name: string;
+  currentPrice: number;
+  targetPrice: number;
+  type: 'buy' | 'mos'; // 'buy' = at/below target, 'mos' = at/below MOS price
+}
 
 function WatchlistPage() {
   const queryClient = useQueryClient();
@@ -39,6 +60,96 @@ function WatchlistPage() {
   const [newTicker, setNewTicker] = useState('');
   const [newTargetPrice, setNewTargetPrice] = useState('');
   const [newNotes, setNewNotes] = useState('');
+
+  // Price alert state
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [alertSnackbarOpen, setAlertSnackbarOpen] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
+
+  /**
+   * Request notification permission from the browser
+   *
+   * WHY request on demand?
+   * - Better UX than requesting on page load
+   * - User understands why we need permission
+   * - Required by modern browsers
+   */
+  const requestNotificationPermission = async () => {
+    if (typeof Notification === 'undefined') {
+      return 'denied';
+    }
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    return permission;
+  };
+
+  /**
+   * Check all watchlist items against their target prices
+   * Sends browser notification for any stocks that hit targets
+   */
+  const checkPriceAlerts = async () => {
+    if (!watchlist || watchlist.length === 0) return;
+
+    // Request permission if not granted
+    let permission = notificationPermission;
+    if (permission === 'default') {
+      permission = await requestNotificationPermission();
+    }
+
+    // Find stocks that hit their targets
+    const triggeredAlerts: PriceAlert[] = [];
+
+    for (const item of watchlist) {
+      if (!item.currentPrice) continue;
+
+      // Check if price is at or below target price
+      if (item.targetPrice && item.currentPrice <= item.targetPrice) {
+        triggeredAlerts.push({
+          ticker: item.ticker,
+          name: item.name,
+          currentPrice: item.currentPrice,
+          targetPrice: item.targetPrice,
+          type: 'buy',
+        });
+      }
+      // Check if price is at or below MOS price (margin of safety)
+      else if (item.mosPrice && item.currentPrice <= item.mosPrice) {
+        triggeredAlerts.push({
+          ticker: item.ticker,
+          name: item.name,
+          currentPrice: item.currentPrice,
+          targetPrice: item.mosPrice,
+          type: 'mos',
+        });
+      }
+    }
+
+    setAlerts(triggeredAlerts);
+    setAlertSnackbarOpen(true);
+
+    // Send browser notification if permission granted
+    if (permission === 'granted' && triggeredAlerts.length > 0) {
+      const title = `${triggeredAlerts.length} Price Alert${triggeredAlerts.length > 1 ? 's' : ''}!`;
+      const body = triggeredAlerts
+        .map((a) => `${a.ticker}: $${a.currentPrice.toFixed(2)} (target: $${a.targetPrice.toFixed(2)})`)
+        .join('\n');
+
+      new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        tag: 'price-alert', // Prevents duplicate notifications
+      });
+    }
+  };
+
+  /**
+   * Check if a watchlist item has triggered an alert
+   */
+  const hasAlert = (ticker: string): PriceAlert | undefined => {
+    return alerts.find((a) => a.ticker === ticker);
+  };
 
   const { data: watchlist, isLoading, isError, error } = useQuery({
     queryKey: ['watchlist'],
@@ -85,14 +196,61 @@ function WatchlistPage() {
             Track stocks and monitor price targets.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setAddDialogOpen(true)}
-        >
-          Add Stock
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip
+            title={
+              notificationPermission === 'denied'
+                ? 'Notifications blocked - enable in browser settings'
+                : 'Check which stocks hit their target prices'
+            }
+          >
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<AlertIcon />}
+                onClick={checkPriceAlerts}
+                disabled={!watchlist || watchlist.length === 0}
+              >
+                Check Alerts
+              </Button>
+            </span>
+          </Tooltip>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setAddDialogOpen(true)}
+          >
+            Add Stock
+          </Button>
+        </Box>
       </Box>
+
+      {/* Alert Summary Banner */}
+      {alerts.length > 0 && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+          onClose={() => setAlerts([])}
+          icon={<CheckIcon />}
+        >
+          <Typography variant="subtitle2">
+            {alerts.length} stock{alerts.length > 1 ? 's' : ''} hit target price!
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+            {alerts.map((alert) => (
+              <Chip
+                key={alert.ticker}
+                label={`${alert.ticker}: $${alert.currentPrice.toFixed(2)}`}
+                color={alert.type === 'buy' ? 'success' : 'info'}
+                size="small"
+                component={Link}
+                to={`/analysis/${alert.ticker}`}
+                clickable
+              />
+            ))}
+          </Box>
+        </Alert>
+      )}
 
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -120,16 +278,38 @@ function WatchlistPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {watchlist.map((item: WatchlistItem) => (
-                <TableRow key={item.id} hover>
+              {watchlist.map((item: WatchlistItem) => {
+                const alert = hasAlert(item.ticker);
+                return (
+                <TableRow
+                  key={item.id}
+                  hover
+                  sx={{
+                    // Highlight rows that triggered alerts
+                    backgroundColor: alert ? 'rgba(46, 125, 50, 0.08)' : undefined,
+                    '&:hover': {
+                      backgroundColor: alert ? 'rgba(46, 125, 50, 0.12)' : undefined,
+                    },
+                  }}
+                >
                   <TableCell>
-                    <Typography
-                      component={Link}
-                      to={`/analysis/${item.ticker}`}
-                      sx={{ fontWeight: 'bold', textDecoration: 'none', color: 'primary.main' }}
-                    >
-                      {item.ticker}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography
+                        component={Link}
+                        to={`/analysis/${item.ticker}`}
+                        sx={{ fontWeight: 'bold', textDecoration: 'none', color: 'primary.main' }}
+                      >
+                        {item.ticker}
+                      </Typography>
+                      {alert && (
+                        <Chip
+                          label={alert.type === 'buy' ? 'BUY' : 'MOS'}
+                          color="success"
+                          size="small"
+                          sx={{ height: 20, fontSize: '0.65rem' }}
+                        />
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell>{item.name}</TableCell>
                   <TableCell align="right">
@@ -198,7 +378,8 @@ function WatchlistPage() {
                     </IconButton>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
@@ -273,6 +454,19 @@ function WatchlistPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Alert Check Snackbar */}
+      <Snackbar
+        open={alertSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setAlertSnackbarOpen(false)}
+        message={
+          alerts.length > 0
+            ? `${alerts.length} stock${alerts.length > 1 ? 's' : ''} at or below target price!`
+            : 'No stocks at target price yet.'
+        }
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 }

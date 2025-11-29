@@ -24,6 +24,7 @@ import { companyApi } from '../lib/api';
 import { getScoreColor, getChangeColor } from '../theme';
 import { BigFiveChart } from '../components/BigFiveChart';
 import { FinancialsTable } from '../components/FinancialsTable';
+import { ScoreHistoryChart } from '../components/ScoreHistoryChart';
 
 // Score Card Component
 function ScoreCard({
@@ -409,6 +410,11 @@ function AnalysisPage() {
           Historical Financials
         </Typography>
         <FinancialsTable ticker={ticker} />
+      </Box>
+
+      {/* Score History */}
+      <Box sx={{ mt: 4 }}>
+        <ScoreHistoryChart ticker={ticker} />
       </Box>
 
       {/* Meta Info */}

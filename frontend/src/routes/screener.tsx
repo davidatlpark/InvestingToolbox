@@ -21,7 +21,9 @@ import {
   Alert,
   Chip,
   Pagination,
+  Tooltip,
 } from '@mui/material';
+import { Download as DownloadIcon } from '@mui/icons-material';
 import { ScreenerTableSkeleton } from '../components/TableSkeleton';
 import { useState } from 'react';
 import { screenerApi, type ScreenerResult } from '../lib/api';
@@ -48,6 +50,73 @@ function ScreenerPage() {
 
   const handleFilterChange = (key: keyof typeof filters, value: number | string) => {
     setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
+  };
+
+  /**
+   * Export screener results to CSV
+   *
+   * WHY client-side export?
+   * - No additional server round-trip needed
+   * - Data is already loaded in the client
+   * - Instant feedback for user
+   */
+  const exportToCSV = () => {
+    if (!data || data.data.length === 0) return;
+
+    // Build CSV content
+    const headers = [
+      'Ticker',
+      'Company Name',
+      'Sector',
+      'Industry',
+      'Value Score',
+      'ROIC Score',
+      'Moat Score',
+      'Debt Score',
+      'Current Price',
+      'Sticker Price',
+      'MOS Price',
+      'Payback Time',
+      'Market Cap',
+    ];
+
+    const rows = data.data.map((stock) => [
+      stock.ticker,
+      stock.name,
+      stock.sector || 'N/A',
+      stock.industry || 'N/A',
+      stock.valueScore.toString(),
+      stock.roicScore.toString(),
+      stock.moatScore.toString(),
+      stock.debtScore.toString(),
+      stock.currentPrice?.toFixed(2) || 'N/A',
+      stock.stickerPrice?.toFixed(2) || 'N/A',
+      stock.mosPrice?.toFixed(2) || 'N/A',
+      stock.paybackTime?.toFixed(1) || 'N/A',
+      stock.marketCap ? (stock.marketCap / 1e9).toFixed(2) + 'B' : 'N/A',
+    ]);
+
+    // Escape CSV values (handle commas, quotes, newlines)
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => row.map(escapeCSV).join(',')),
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `screener-results-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -222,9 +291,21 @@ function ScreenerPage() {
             </Alert>
           ) : data && data.data.length > 0 ? (
             <>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Found {data.meta.total} companies matching your criteria
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Found {data.meta.total} companies matching your criteria
+                </Typography>
+                <Tooltip title="Export current page to CSV">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={exportToCSV}
+                  >
+                    Export CSV
+                  </Button>
+                </Tooltip>
+              </Box>
 
               <TableContainer
                 component={Paper}
