@@ -1,0 +1,213 @@
+// Prisma Schema for Value Investing Toolbox
+// Based on Rule One Investing methodology
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// COMPANY DATA
+// ============================================
+
+model Company {
+  id          String   @id @default(cuid())
+  ticker      String   @unique
+  name        String
+  sector      String?
+  industry    String?
+  exchange    String?
+  description String?
+  marketCap   Decimal?
+  country     String?
+  website     String?
+
+  // Relationships
+  financials    FinancialStatement[]
+  scores        CompanyScore[]
+  watchlistItem WatchlistItem?
+
+  // Metadata
+  lastUpdated DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([sector])
+  @@index([industry])
+}
+
+model FinancialStatement {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Period
+  fiscalYear    Int
+  fiscalQuarter Int? // null = annual, 1-4 = quarterly
+  periodEndDate DateTime
+  filingDate    DateTime?
+
+  // Income Statement
+  revenue           Decimal?
+  costOfRevenue     Decimal?
+  grossProfit       Decimal?
+  operatingExpenses Decimal?
+  operatingIncome   Decimal?
+  interestExpense   Decimal?
+  incomeBeforeTax   Decimal?
+  incomeTaxExpense  Decimal?
+  netIncome         Decimal?
+  eps               Decimal?
+  epsDiluted        Decimal?
+  sharesOutstanding Decimal?
+
+  // Balance Sheet
+  cashAndEquivalents   Decimal?
+  shortTermInvestments Decimal?
+  totalCurrentAssets   Decimal?
+  propertyPlantEquip   Decimal?
+  goodwill             Decimal?
+  intangibleAssets     Decimal?
+  totalAssets          Decimal?
+  accountsPayable      Decimal?
+  shortTermDebt        Decimal?
+  totalCurrentLiab     Decimal?
+  longTermDebt         Decimal?
+  totalLiabilities     Decimal?
+  totalEquity          Decimal?
+  bookValuePerShare    Decimal?
+
+  // Cash Flow Statement
+  operatingCashFlow   Decimal?
+  capitalExpenditures Decimal?
+  freeCashFlow        Decimal?
+  dividendsPaid       Decimal?
+  netChangeInCash     Decimal?
+
+  // Calculated Metrics (stored for performance)
+  roic         Decimal?
+  roe          Decimal?
+  currentRatio Decimal?
+  debtToEquity Decimal?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, fiscalYear, fiscalQuarter])
+  @@index([companyId])
+  @@index([fiscalYear])
+}
+
+model CompanyScore {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  calculatedAt DateTime @default(now())
+
+  // Main Scores (0-100)
+  valueScore      Float
+  roicScore       Float
+  moatScore       Float
+  debtScore       Float
+  managementScore Float
+
+  // Big Five Growth Rates (percentages)
+  roic1Year  Float?
+  roic5Year  Float?
+  roic10Year Float?
+
+  epsGrowth1Year  Float?
+  epsGrowth5Year  Float?
+  epsGrowth10Year Float?
+
+  revenueGrowth1Year  Float?
+  revenueGrowth5Year  Float?
+  revenueGrowth10Year Float?
+
+  equityGrowth1Year  Float?
+  equityGrowth5Year  Float?
+  equityGrowth10Year Float?
+
+  fcfGrowth1Year  Float?
+  fcfGrowth5Year  Float?
+  fcfGrowth10Year Float?
+
+  // Valuation
+  currentPrice Float?
+  stickerPrice Float?
+  mosPrice     Float? // Margin of Safety Price
+  paybackTime  Float? // Years
+
+  // Assessment
+  isPredictable Boolean @default(true)
+  yearsOfData   Int     @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([valueScore])
+  @@index([calculatedAt])
+}
+
+// ============================================
+// USER DATA (simplified, no auth)
+// ============================================
+
+model WatchlistItem {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  targetPrice Float?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model SavedScreen {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  filters     Json // Store filter configuration as JSON
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// CACHING
+// ============================================
+
+model CachedQuote {
+  id            String @id @default(cuid())
+  ticker        String @unique
+  price         Float
+  change        Float?
+  changePercent Float?
+  volume        BigInt?
+
+  fetchedAt DateTime @default(now())
+
+  @@index([fetchedAt])
+}
+
+model ApiCache {
+  id       String   @id @default(cuid())
+  endpoint String
+  params   String // JSON stringified params
+  response Json
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([endpoint, params])
+  @@index([expiresAt])
+}
