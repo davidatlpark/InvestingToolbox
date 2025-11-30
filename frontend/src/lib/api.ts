@@ -490,3 +490,94 @@ export const quotesApi = {
     return response.data.data;
   },
 };
+
+// =============================================================================
+// SEC Filings API
+// =============================================================================
+
+/**
+ * SEC Filing from EDGAR database
+ */
+export interface SECFiling {
+  accessionNumber: string;
+  filingDate: string;
+  reportDate: string;
+  form: string; // '10-K', '10-Q', '8-K', etc.
+  description: string;
+  primaryDocument: string;
+  documentUrl: string;
+  size: number;
+  isXBRL: boolean;
+}
+
+/**
+ * SEC Filings list response
+ */
+export interface FilingsResponse {
+  ticker: string;
+  companyName: string;
+  cik: string;
+  filings: SECFiling[];
+}
+
+/**
+ * SEC filing detail response
+ */
+export interface FilingDetailResponse {
+  ticker: string;
+  companyName: string;
+  cik: string;
+  filing: SECFiling;
+  viewerUrl: string;
+  indexUrl: string;
+}
+
+/**
+ * SEC Filings API
+ *
+ * Fetches SEC EDGAR filing data for companies.
+ * Provides access to 10-K (annual) and 10-Q (quarterly) reports.
+ */
+export const filingsApi = {
+  /**
+   * Get list of SEC filings for a company
+   *
+   * @param ticker - Stock ticker symbol
+   * @param options - Filter options (forms, limit)
+   */
+  getFilings: async (
+    ticker: string,
+    options?: { forms?: string[]; limit?: number }
+  ): Promise<FilingsResponse> => {
+    const params: Record<string, string> = {};
+
+    if (options?.forms) {
+      params.forms = options.forms.join(',');
+    }
+    if (options?.limit) {
+      params.limit = String(options.limit);
+    }
+
+    const response = await api.get<ApiResponse<FilingsResponse>>(
+      `/filings/${ticker}`,
+      { params }
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Get details for a specific filing
+   *
+   * @param ticker - Stock ticker symbol
+   * @param accessionNumber - SEC accession number (e.g., "0000320193-23-000077")
+   */
+  getFilingDetail: async (
+    ticker: string,
+    accessionNumber: string
+  ): Promise<FilingDetailResponse> => {
+    const response = await api.get<ApiResponse<FilingDetailResponse>>(
+      `/filings/${ticker}/${accessionNumber}`
+    );
+    return response.data.data;
+  },
+};

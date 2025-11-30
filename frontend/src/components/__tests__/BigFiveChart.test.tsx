@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '../../test/utils';
+import { render } from '../../test/utils';
 import { BigFiveChart } from '../BigFiveChart';
 import { mockFactories } from '../../test/utils';
 

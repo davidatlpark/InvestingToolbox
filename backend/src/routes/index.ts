@@ -4,6 +4,7 @@ import { screenerRouter } from './screener.js';
 import { valuationRouter } from './valuation.js';
 import { watchlistRouter } from './watchlist.js';
 import { quotesRouter } from './quotes.js';
+import { filingsRouter } from './filings.js';
 
 export const routes = Router();
 
@@ -13,6 +14,7 @@ routes.use('/screener', screenerRouter);
 routes.use('/valuation', valuationRouter);
 routes.use('/watchlist', watchlistRouter);
 routes.use('/quotes', quotesRouter);
+routes.use('/filings', filingsRouter);
 
 // API info endpoint
 routes.get('/', (_req, res) => {
@@ -26,6 +28,7 @@ routes.get('/', (_req, res) => {
       valuation: '/api/valuation',
       watchlist: '/api/watchlist',
       quotes: '/api/quotes/:ticker',
+      filings: '/api/filings/:ticker',
     },
   });
 });

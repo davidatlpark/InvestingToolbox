@@ -25,6 +25,7 @@ import { getScoreColor, getChangeColor } from '../theme';
 import { BigFiveChart } from '../components/BigFiveChart';
 import { FinancialsTable } from '../components/FinancialsTable';
 import { ScoreHistoryChart } from '../components/ScoreHistoryChart';
+import { SECFilings } from '../components/SECFilings';
 
 // Score Card Component
 function ScoreCard({
@@ -415,6 +416,11 @@ function AnalysisPage() {
       {/* Score History */}
       <Box sx={{ mt: 4 }}>
         <ScoreHistoryChart ticker={ticker} />
+      </Box>
+
+      {/* SEC Filings */}
+      <Box sx={{ mt: 4 }}>
+        <SECFilings ticker={ticker} />
       </Box>
 
       {/* Meta Info */}
