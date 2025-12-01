@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateParams, validateQuery } from '../middleware/validateRequest.js';
-import { fmpClient } from '../services/fmp/client.js';
+import { yahooClient } from '../services/yahoo/client.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
 export const quotesRouter = Router();
@@ -16,10 +16,11 @@ const batchQuerySchema = z.object({
 });
 
 // GET /api/quotes/:ticker - Get quote for a single ticker
+// Uses Yahoo Finance for FREE quotes (FMP free tier limits quotes to major stocks)
 quotesRouter.get('/:ticker', validateParams(tickerParamsSchema), async (req, res) => {
   const { ticker } = req.params;
 
-  const quote = await fmpClient.getQuote(ticker);
+  const quote = await yahooClient.getQuote(ticker);
 
   if (!quote) {
     throw ApiError.notFound(`Quote not found for ${ticker}`);
@@ -32,7 +33,7 @@ quotesRouter.get('/:ticker', validateParams(tickerParamsSchema), async (req, res
       name: quote.name,
       price: quote.price,
       change: quote.change,
-      changePercent: quote.changesPercentage,
+      changePercent: quote.changePercent,
       dayLow: quote.dayLow,
       dayHigh: quote.dayHigh,
       yearLow: quote.yearLow,
@@ -50,6 +51,7 @@ quotesRouter.get('/:ticker', validateParams(tickerParamsSchema), async (req, res
 });
 
 // GET /api/quotes/batch - Get quotes for multiple tickers
+// Uses Yahoo Finance for FREE quotes (FMP free tier limits quotes to major stocks)
 quotesRouter.get('/', validateQuery(batchQuerySchema), async (req, res) => {
   const { tickers } = req.query as { tickers: string };
 
@@ -64,7 +66,7 @@ quotesRouter.get('/', validateQuery(batchQuerySchema), async (req, res) => {
     return res.json({ success: true, data: [] });
   }
 
-  const quotes = await fmpClient.getBatchQuotes(tickerList);
+  const quotes = await yahooClient.getBatchQuotes(tickerList);
 
   res.json({
     success: true,
@@ -73,7 +75,7 @@ quotesRouter.get('/', validateQuery(batchQuerySchema), async (req, res) => {
       name: q.name,
       price: q.price,
       change: q.change,
-      changePercent: q.changesPercentage,
+      changePercent: q.changePercent,
       volume: q.volume,
       marketCap: q.marketCap,
       pe: q.pe,

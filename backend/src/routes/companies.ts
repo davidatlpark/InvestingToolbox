@@ -5,6 +5,7 @@ import { prisma } from '../config/database.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { fmpClient } from '../services/fmp/client.js';
 import { secEdgarClient } from '../services/edgar/client.js';
+import { yahooClient } from '../services/yahoo/client.js';
 import { calculateAllScores } from '../calculators/scoring.js';
 import { calculateBigFive } from '../calculators/bigFive.js';
 import { logger } from '../utils/logger.js';
@@ -169,8 +170,8 @@ companiesRouter.get(
       const bigFive = calculateBigFive(freshFinancials);
       const scores = calculateAllScores(freshFinancials, bigFive);
 
-      // Get current price
-      const quote = await fmpClient.getQuote(ticker);
+      // Get current price from Yahoo Finance (FREE for all tickers)
+      const quote = await yahooClient.getQuote(ticker);
 
       await prisma.companyScore.create({
         data: {
@@ -203,7 +204,8 @@ companiesRouter.get(
     }
 
     const score = company.scores[0];
-    const quote = await fmpClient.getQuote(ticker);
+    // Get fresh quote from Yahoo Finance (FREE for all tickers)
+    const quote = await yahooClient.getQuote(ticker);
 
     // Build response
     const response: ApiResponse<CompanyAnalysis> = {

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { validateBody, validateParams } from '../middleware/validateRequest.js';
 import { prisma } from '../config/database.js';
 import { ApiError } from '../middleware/errorHandler.js';
-import { fmpClient } from '../services/fmp/client.js';
+import { yahooClient } from '../services/yahoo/client.js';
 import {
   calculateValuation,
   calculatePaybackTime,
@@ -92,8 +92,8 @@ valuationRouter.get(
       throw ApiError.badRequest(`No EPS data available for ${ticker}`);
     }
 
-    // Get current price
-    const quote = await fmpClient.getQuote(ticker);
+    // Get current price from Yahoo Finance (FREE for all tickers)
+    const quote = await yahooClient.getQuote(ticker);
     const currentPrice = quote?.price ?? null;
 
     // Extract historical growth rates for estimation

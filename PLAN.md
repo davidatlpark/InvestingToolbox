@@ -25,13 +25,15 @@ Build a personal web application for value investing analysis based on Warren Bu
 | Phase 6 | ✅ Complete | Polish & Testing - 109 backend tests, error handling, responsive UI |
 | Phase 7 | ✅ Complete | Advanced Features - Comparison, CSV export, Alerts, Score History, 24 component tests |
 | Phase 8 | ✅ Complete | FREE Data Migration - SEC EDGAR XBRL for all financial data |
+| Phase 9 | ✅ Complete | Yahoo Finance Integration - FREE quotes for all tickers |
 
 ### What's Built
 
 **Backend:**
 - ✅ Express + TypeScript server with Prisma ORM
 - ✅ PostgreSQL database with full schema
-- ✅ FMP API client for company profiles, quotes, and search (free tier)
+- ✅ FMP API client for company profiles and search (free tier)
+- ✅ **Yahoo Finance client for stock quotes (FREE for all tickers)**
 - ✅ **SEC EDGAR XBRL client for ALL financial data (100% FREE)**
 - ✅ Calculator engine (Big Five, Scoring, Valuation)
 - ✅ All API routes (companies, screener, valuation, watchlist, quotes, filings)
@@ -87,18 +89,24 @@ Build a personal web application for value investing analysis based on Warren Bu
 | Authentication | None | Personal single-user tool |
 | Deployment | TBD | Focus on local development first |
 
-### Data Source Architecture (Updated Nov 2025)
+### Data Source Architecture (Updated Dec 2025)
 
 | Data Type | Source | Cost | Notes |
 |-----------|--------|------|-------|
 | Company Profile | FMP (free tier) | FREE | Name, sector, industry, description |
-| Stock Quotes | FMP (free tier) | FREE | Real-time prices |
+| **Stock Quotes** | **Yahoo Finance** | **FREE** | Real-time prices for ALL tickers |
 | Search | FMP (free tier) | FREE | Company search |
 | **Financial Statements** | **SEC EDGAR XBRL** | **FREE** | Income, Balance Sheet, Cash Flow |
 | **Key Metrics** | **Calculated** | **FREE** | ROIC, ROE, growth rates from SEC data |
 | SEC Filings | SEC EDGAR | FREE | 10-K, 10-Q documents |
 
-**Why SEC EDGAR?**
+**Why Yahoo Finance for Quotes?**
+- FMP stable API `/quote` is premium for most tickers (only major stocks like AAPL work on free tier)
+- Yahoo Finance via `yahoo-finance2` npm package works for ALL tickers
+- No API key required, no rate limits
+- Provides price, change, volume, market cap, PE, EPS
+
+**Why SEC EDGAR for Financials?**
 - FMP financial data requires $22+/month subscription
 - SEC EDGAR Company Facts API provides all XBRL data for FREE
 - Same official data that FMP sources from
