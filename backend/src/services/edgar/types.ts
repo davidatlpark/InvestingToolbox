@@ -141,3 +141,249 @@ export interface FilingContentResponse {
     available: boolean;
   }>;
 }
+
+/**
+ * SEC Company Facts API Response (XBRL data)
+ * GET https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json
+ *
+ * This is the FREE source for all financial statement data!
+ * Contains all XBRL data from 10-K and 10-Q filings.
+ */
+export interface SECCompanyFacts {
+  cik: number;
+  entityName: string;
+  facts: {
+    dei: Record<string, SECFactData>;
+    'us-gaap': Record<string, SECFactData>;
+  };
+}
+
+/**
+ * Individual fact data (e.g., Revenues, NetIncomeLoss)
+ */
+export interface SECFactData {
+  label: string;
+  description: string;
+  units: {
+    USD?: SECFactUnit[];
+    shares?: SECFactUnit[];
+    'USD/shares'?: SECFactUnit[];
+    pure?: SECFactUnit[];
+  };
+}
+
+/**
+ * Individual fact value with period information
+ */
+export interface SECFactUnit {
+  start?: string; // Period start date
+  end: string; // Period end date (for instant facts, this is the date)
+  val: number; // The value
+  accn: string; // Accession number of filing
+  fy: number; // Fiscal year
+  fp: string; // Fiscal period: 'FY', 'Q1', 'Q2', 'Q3', 'Q4'
+  form: string; // '10-K', '10-Q', etc.
+  filed: string; // Filing date
+  frame?: string; // Calendar frame: 'CY2023', 'CY2023Q1', etc.
+}
+
+/**
+ * XBRL tag mappings to our normalized financial statement fields
+ *
+ * WHY these mappings?
+ * - Companies use different XBRL tags for similar concepts
+ * - We need to normalize to a single field name
+ * - Priority order matters (first match wins)
+ */
+export const XBRL_TAG_MAPPINGS = {
+  // Revenue - companies use different tags
+  revenue: [
+    'RevenueFromContractWithCustomerExcludingAssessedTax', // Most common (ASC 606)
+    'Revenues', // General revenue
+    'SalesRevenueNet', // Net sales
+    'SalesRevenueGoodsNet',
+    'SalesRevenueServicesNet',
+  ],
+
+  // Cost of Revenue
+  costOfRevenue: [
+    'CostOfGoodsAndServicesSold',
+    'CostOfRevenue',
+    'CostOfGoodsSold',
+    'CostOfServices',
+  ],
+
+  // Gross Profit
+  grossProfit: ['GrossProfit'],
+
+  // Operating Expenses
+  operatingExpenses: [
+    'OperatingExpenses',
+    'CostsAndExpenses', // Some companies use this
+  ],
+
+  // Operating Income
+  operatingIncome: [
+    'OperatingIncomeLoss',
+    'IncomeLossFromOperations',
+  ],
+
+  // Interest Expense
+  interestExpense: [
+    'InterestExpense',
+    'InterestAndDebtExpense',
+    'InterestExpenseDebt',
+  ],
+
+  // Income Before Tax
+  incomeBeforeTax: [
+    'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+    'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments',
+    'IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign',
+    'IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic',
+  ],
+
+  // Income Tax Expense
+  incomeTaxExpense: [
+    'IncomeTaxExpenseBenefit',
+    'IncomeTaxesPaidNet',
+  ],
+
+  // Net Income
+  netIncome: [
+    'NetIncomeLoss',
+    'NetIncomeLossAvailableToCommonStockholdersBasic',
+    'ProfitLoss',
+  ],
+
+  // EPS
+  eps: ['EarningsPerShareBasic'],
+  epsDiluted: ['EarningsPerShareDiluted'],
+
+  // Shares Outstanding
+  sharesOutstanding: [
+    'CommonStockSharesOutstanding',
+    'WeightedAverageNumberOfSharesOutstandingBasic',
+  ],
+
+  // Balance Sheet - Assets
+  cashAndEquivalents: [
+    'CashAndCashEquivalentsAtCarryingValue',
+    'Cash',
+  ],
+  shortTermInvestments: [
+    'ShortTermInvestments',
+    'MarketableSecuritiesCurrent',
+    'AvailableForSaleSecuritiesCurrent',
+  ],
+  totalCurrentAssets: ['AssetsCurrent'],
+  propertyPlantEquip: [
+    'PropertyPlantAndEquipmentNet',
+    'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization',
+  ],
+  goodwill: ['Goodwill'],
+  intangibleAssets: [
+    'IntangibleAssetsNetExcludingGoodwill',
+    'FiniteLivedIntangibleAssetsNet',
+  ],
+  totalAssets: ['Assets'],
+
+  // Balance Sheet - Liabilities
+  accountsPayable: [
+    'AccountsPayableCurrent',
+    'AccountsPayableAndAccruedLiabilitiesCurrent',
+  ],
+  shortTermDebt: [
+    'ShortTermBorrowings',
+    'DebtCurrent',
+    'LongTermDebtCurrent',
+  ],
+  totalCurrentLiab: ['LiabilitiesCurrent'],
+  longTermDebt: [
+    'LongTermDebtNoncurrent',
+    'LongTermDebt',
+    'LongTermDebtAndCapitalLeaseObligations',
+  ],
+  totalLiabilities: ['Liabilities'],
+
+  // Equity
+  totalEquity: [
+    'StockholdersEquity',
+    'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest',
+  ],
+
+  // Cash Flow
+  operatingCashFlow: [
+    'NetCashProvidedByUsedInOperatingActivities',
+    'NetCashProvidedByUsedInOperatingActivitiesContinuingOperations',
+  ],
+  capitalExpenditures: [
+    'PaymentsToAcquirePropertyPlantAndEquipment',
+    'PaymentsToAcquireProductiveAssets',
+  ],
+  dividendsPaid: [
+    'PaymentsOfDividendsCommonStock',
+    'PaymentsOfDividends',
+    'DividendsCommonStockCash',
+  ],
+
+  // Net Change in Cash
+  netChangeInCash: [
+    'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect',
+    'CashAndCashEquivalentsPeriodIncreaseDecrease',
+    'NetCashProvidedByUsedInContinuingOperations',
+  ],
+
+  // Key Metrics (for ROIC calculation)
+  investedCapital: [
+    'InvestedCapital', // Rarely directly reported
+  ],
+} as const;
+
+/**
+ * Extracted annual financial statement from SEC XBRL data
+ */
+export interface SECExtractedFinancials {
+  fiscalYear: number;
+  periodEndDate: string;
+  filingDate: string;
+
+  // Income Statement
+  revenue: number | null;
+  costOfRevenue: number | null;
+  grossProfit: number | null;
+  operatingExpenses: number | null;
+  operatingIncome: number | null;
+  interestExpense: number | null;
+  incomeBeforeTax: number | null;
+  incomeTaxExpense: number | null;
+  netIncome: number | null;
+  eps: number | null;
+  epsDiluted: number | null;
+  sharesOutstanding: number | null;
+
+  // Balance Sheet
+  cashAndEquivalents: number | null;
+  shortTermInvestments: number | null;
+  totalCurrentAssets: number | null;
+  propertyPlantEquip: number | null;
+  goodwill: number | null;
+  intangibleAssets: number | null;
+  totalAssets: number | null;
+  accountsPayable: number | null;
+  shortTermDebt: number | null;
+  totalCurrentLiab: number | null;
+  longTermDebt: number | null;
+  totalLiabilities: number | null;
+  totalEquity: number | null;
+
+  // Cash Flow
+  operatingCashFlow: number | null;
+  capitalExpenditures: number | null;
+  freeCashFlow: number | null; // Calculated: operatingCashFlow - capitalExpenditures
+  dividendsPaid: number | null;
+  netChangeInCash: number | null;
+
+  // Book Value Per Share (calculated from totalEquity / sharesOutstanding)
+  bookValuePerShare: number | null;
+}

@@ -12,6 +12,17 @@ import type {
   NormalizedFinancialStatement,
 } from './types.js';
 
+/**
+ * FMP API Client
+ *
+ * Uses the new stable API endpoints (not legacy v3).
+ * FMP deprecated /api/v3 endpoints on August 31, 2025.
+ *
+ * Key differences from legacy API:
+ * - Base URL: /stable instead of /api/v3
+ * - Query params: ?symbol=AAPL instead of path /AAPL
+ * - Search: /search-name instead of /search
+ */
 class FMPClient {
   private client: AxiosInstance;
   private apiKey: string;
@@ -19,7 +30,8 @@ class FMPClient {
   constructor() {
     this.apiKey = env.FMP_API_KEY;
     this.client = axios.create({
-      baseURL: 'https://financialmodelingprep.com/api/v3',
+      // Use new stable API endpoint (not deprecated v3)
+      baseURL: 'https://financialmodelingprep.com/stable',
       timeout: 30000,
     });
 
@@ -43,9 +55,12 @@ class FMPClient {
   }
 
   // Get company profile
+  // Stable API: /profile?symbol=AAPL
   async getCompanyProfile(ticker: string): Promise<FMPCompanyProfile | null> {
     try {
-      const response = await this.client.get<FMPCompanyProfile[]>(`/profile/${ticker}`);
+      const response = await this.client.get<FMPCompanyProfile[]>('/profile', {
+        params: { symbol: ticker },
+      });
       return response.data[0] || null;
     } catch (error) {
       logger.error(`Failed to fetch profile for ${ticker}`);
@@ -54,12 +69,12 @@ class FMPClient {
   }
 
   // Get income statements
+  // Stable API: /income-statement?symbol=AAPL&limit=10
   async getIncomeStatements(ticker: string, limit = 10): Promise<FMPIncomeStatement[]> {
     try {
-      const response = await this.client.get<FMPIncomeStatement[]>(
-        `/income-statement/${ticker}`,
-        { params: { limit } }
-      );
+      const response = await this.client.get<FMPIncomeStatement[]>('/income-statement', {
+        params: { symbol: ticker, limit },
+      });
       return response.data || [];
     } catch (error) {
       logger.error(`Failed to fetch income statements for ${ticker}`);
@@ -68,12 +83,12 @@ class FMPClient {
   }
 
   // Get balance sheets
+  // Stable API: /balance-sheet-statement?symbol=AAPL&limit=10
   async getBalanceSheets(ticker: string, limit = 10): Promise<FMPBalanceSheet[]> {
     try {
-      const response = await this.client.get<FMPBalanceSheet[]>(
-        `/balance-sheet-statement/${ticker}`,
-        { params: { limit } }
-      );
+      const response = await this.client.get<FMPBalanceSheet[]>('/balance-sheet-statement', {
+        params: { symbol: ticker, limit },
+      });
       return response.data || [];
     } catch (error) {
       logger.error(`Failed to fetch balance sheets for ${ticker}`);
@@ -82,12 +97,12 @@ class FMPClient {
   }
 
   // Get cash flow statements
+  // Stable API: /cash-flow-statement?symbol=AAPL&limit=10
   async getCashFlowStatements(ticker: string, limit = 10): Promise<FMPCashFlowStatement[]> {
     try {
-      const response = await this.client.get<FMPCashFlowStatement[]>(
-        `/cash-flow-statement/${ticker}`,
-        { params: { limit } }
-      );
+      const response = await this.client.get<FMPCashFlowStatement[]>('/cash-flow-statement', {
+        params: { symbol: ticker, limit },
+      });
       return response.data || [];
     } catch (error) {
       logger.error(`Failed to fetch cash flow statements for ${ticker}`);
@@ -96,10 +111,11 @@ class FMPClient {
   }
 
   // Get key metrics (includes ROIC)
+  // Stable API: /key-metrics?symbol=AAPL&limit=10
   async getKeyMetrics(ticker: string, limit = 10): Promise<FMPKeyMetrics[]> {
     try {
-      const response = await this.client.get<FMPKeyMetrics[]>(`/key-metrics/${ticker}`, {
-        params: { limit },
+      const response = await this.client.get<FMPKeyMetrics[]>('/key-metrics', {
+        params: { symbol: ticker, limit },
       });
       return response.data || [];
     } catch (error) {
@@ -109,9 +125,12 @@ class FMPClient {
   }
 
   // Get current quote
+  // Stable API: /quote?symbol=AAPL
   async getQuote(ticker: string): Promise<FMPQuote | null> {
     try {
-      const response = await this.client.get<FMPQuote[]>(`/quote/${ticker}`);
+      const response = await this.client.get<FMPQuote[]>('/quote', {
+        params: { symbol: ticker },
+      });
       return response.data[0] || null;
     } catch (error) {
       logger.error(`Failed to fetch quote for ${ticker}`);
@@ -120,10 +139,13 @@ class FMPClient {
   }
 
   // Get batch quotes
+  // Stable API: /quote?symbol=AAPL,MSFT,GOOGL
   async getBatchQuotes(tickers: string[]): Promise<FMPQuote[]> {
     try {
       const tickerString = tickers.join(',');
-      const response = await this.client.get<FMPQuote[]>(`/quote/${tickerString}`);
+      const response = await this.client.get<FMPQuote[]>('/quote', {
+        params: { symbol: tickerString },
+      });
       return response.data || [];
     } catch (error) {
       logger.error(`Failed to fetch batch quotes`);
@@ -132,9 +154,10 @@ class FMPClient {
   }
 
   // Search companies
+  // Stable API: /search-name?query=Apple&limit=10
   async searchCompany(query: string, limit = 10): Promise<FMPSearchResult[]> {
     try {
-      const response = await this.client.get<FMPSearchResult[]>('/search', {
+      const response = await this.client.get<FMPSearchResult[]>('/search-name', {
         params: { query, limit },
       });
       return response.data || [];
@@ -144,7 +167,11 @@ class FMPClient {
     }
   }
 
-  // Get all financial statements and normalize them
+  /**
+   * Get all financial statements and normalize them
+   *
+   * Handles both legacy (calendarYear) and stable API (fiscalYear) field names
+   */
   async getFinancialStatements(
     ticker: string,
     years = 10
@@ -156,17 +183,27 @@ class FMPClient {
       this.getKeyMetrics(ticker, years),
     ]);
 
+    // Helper to get year from either calendarYear or fiscalYear field
+    const getYear = (item: { calendarYear?: string; fiscalYear?: string }): string => {
+      return item.fiscalYear || item.calendarYear || '';
+    };
+
     // Create a map by year for easy lookup
-    const balanceMap = new Map(balanceSheets.map((b) => [b.calendarYear, b]));
-    const cashFlowMap = new Map(cashFlowStatements.map((c) => [c.calendarYear, c]));
-    const metricsMap = new Map(keyMetrics.map((m) => [m.calendarYear, m]));
+    const balanceMap = new Map(balanceSheets.map((b) => [getYear(b), b]));
+    const cashFlowMap = new Map(cashFlowStatements.map((c) => [getYear(c), c]));
+    const metricsMap = new Map(keyMetrics.map((m) => [getYear(m), m]));
 
     // Normalize and combine
     return incomeStatements.map((income) => {
-      const year = income.calendarYear;
+      const year = getYear(income);
       const balance = balanceMap.get(year);
       const cashFlow = cashFlowMap.get(year);
       const metrics = metricsMap.get(year);
+
+      // Get ROIC from either legacy or stable API field
+      const roicValue = metrics?.returnOnInvestedCapital ?? metrics?.roic;
+      // Get ROE from either legacy or stable API field
+      const roeValue = metrics?.returnOnEquity ?? metrics?.roe;
 
       return {
         fiscalYear: parseInt(year, 10),
@@ -213,9 +250,10 @@ class FMPClient {
         dividendsPaid: cashFlow?.dividendsPaid ? Math.abs(cashFlow.dividendsPaid) : null,
         netChangeInCash: cashFlow?.netChangeInCash || null,
 
-        // Pre-calculated metrics
-        roic: metrics?.roic ? metrics.roic * 100 : null, // Convert to percentage
-        roe: metrics?.roe ? metrics.roe * 100 : null,
+        // Pre-calculated metrics (handle both legacy and stable API field names)
+        // Stable API returns values as decimals (0.52), so convert to percentage
+        roic: roicValue ? roicValue * 100 : null,
+        roe: roeValue ? roeValue * 100 : null,
         currentRatio: metrics?.currentRatio || null,
         debtToEquity: metrics?.debtToEquity || null,
       };

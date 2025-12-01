@@ -23,6 +23,10 @@ import {
   SECFiling,
   SECTickerMapping,
   FilingsListResponse,
+  SECCompanyFacts,
+  SECExtractedFinancials,
+  SECFactUnit,
+  XBRL_TAG_MAPPINGS,
 } from './types';
 
 // Cache for ticker to CIK mapping (loaded once)
@@ -235,6 +239,230 @@ export class SECEdgarClient {
     }
 
     return results;
+  }
+
+  /**
+   * Get company facts (XBRL financial data) from SEC
+   *
+   * This is the FREE source for all financial statement data!
+   * Contains all historical 10-K and 10-Q financial data.
+   */
+  async getCompanyFacts(cik: string): Promise<SECCompanyFacts> {
+    try {
+      const paddedCik = cik.padStart(10, '0');
+
+      const response = await this.client.get<SECCompanyFacts>(
+        `/api/xbrl/companyfacts/CIK${paddedCik}.json`
+      );
+
+      return response.data;
+    } catch (error) {
+      logger.error(`Failed to get company facts for CIK ${cik}:`, error);
+      throw new Error(`Failed to fetch SEC financial data for CIK ${cik}`);
+    }
+  }
+
+  /**
+   * Get financial statements for a ticker from SEC XBRL data
+   *
+   * WHY this method?
+   * - Extracts annual (10-K) financial data from SEC's free XBRL API
+   * - Maps multiple XBRL tags to our normalized field names
+   * - Returns data sorted by fiscal year (newest first)
+   *
+   * @param ticker - Stock ticker symbol
+   * @param years - Number of years of history to return (default: 10)
+   */
+  async getFinancialStatements(
+    ticker: string,
+    years: number = 10
+  ): Promise<SECExtractedFinancials[]> {
+    // Get CIK for ticker
+    const cikData = await this.getCikForTicker(ticker);
+    if (!cikData) {
+      throw new Error(`No SEC data found for ticker ${ticker}`);
+    }
+
+    // Get all company facts
+    const facts = await this.getCompanyFacts(cikData.cik);
+    const usGaap = facts.facts['us-gaap'];
+
+    if (!usGaap) {
+      logger.warn(`No US-GAAP data found for ${ticker}`);
+      return [];
+    }
+
+    // Find all fiscal years with 10-K filings
+    const fiscalYearsMap = new Map<number, {
+      filingDate: string;
+      periodEnd: string;
+    }>();
+
+    // Use revenue or net income to identify fiscal years
+    const revenueTags = XBRL_TAG_MAPPINGS.revenue;
+    for (const tag of revenueTags) {
+      if (usGaap[tag]?.units?.USD) {
+        for (const fact of usGaap[tag].units.USD) {
+          // Only include 10-K filings (full year)
+          if (fact.form === '10-K' && fact.fp === 'FY') {
+            fiscalYearsMap.set(fact.fy, {
+              filingDate: fact.filed,
+              periodEnd: fact.end,
+            });
+          }
+        }
+        break; // Found revenue data, stop looking
+      }
+    }
+
+    // Sort fiscal years descending and limit
+    const sortedYears = Array.from(fiscalYearsMap.keys())
+      .sort((a, b) => b - a)
+      .slice(0, years);
+
+    // Extract financial data for each year
+    const financials: SECExtractedFinancials[] = [];
+
+    for (const fy of sortedYears) {
+      const yearInfo = fiscalYearsMap.get(fy)!;
+
+      const statement: SECExtractedFinancials = {
+        fiscalYear: fy,
+        periodEndDate: yearInfo.periodEnd,
+        filingDate: yearInfo.filingDate,
+
+        // Income Statement
+        revenue: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.revenue, fy, 'USD'),
+        costOfRevenue: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.costOfRevenue, fy, 'USD'),
+        grossProfit: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.grossProfit, fy, 'USD'),
+        operatingExpenses: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.operatingExpenses, fy, 'USD'),
+        operatingIncome: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.operatingIncome, fy, 'USD'),
+        interestExpense: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.interestExpense, fy, 'USD'),
+        incomeBeforeTax: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.incomeBeforeTax, fy, 'USD'),
+        incomeTaxExpense: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.incomeTaxExpense, fy, 'USD'),
+        netIncome: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.netIncome, fy, 'USD'),
+        eps: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.eps, fy, 'USD/shares'),
+        epsDiluted: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.epsDiluted, fy, 'USD/shares'),
+        sharesOutstanding: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.sharesOutstanding, fy, 'shares'),
+
+        // Balance Sheet (point-in-time values from 10-K)
+        cashAndEquivalents: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.cashAndEquivalents, fy, 'USD'),
+        shortTermInvestments: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.shortTermInvestments, fy, 'USD'),
+        totalCurrentAssets: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.totalCurrentAssets, fy, 'USD'),
+        propertyPlantEquip: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.propertyPlantEquip, fy, 'USD'),
+        goodwill: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.goodwill, fy, 'USD'),
+        intangibleAssets: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.intangibleAssets, fy, 'USD'),
+        totalAssets: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.totalAssets, fy, 'USD'),
+        accountsPayable: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.accountsPayable, fy, 'USD'),
+        shortTermDebt: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.shortTermDebt, fy, 'USD'),
+        totalCurrentLiab: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.totalCurrentLiab, fy, 'USD'),
+        longTermDebt: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.longTermDebt, fy, 'USD'),
+        totalLiabilities: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.totalLiabilities, fy, 'USD'),
+        totalEquity: this.extractInstantValue(usGaap, XBRL_TAG_MAPPINGS.totalEquity, fy, 'USD'),
+
+        // Cash Flow
+        operatingCashFlow: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.operatingCashFlow, fy, 'USD'),
+        capitalExpenditures: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.capitalExpenditures, fy, 'USD'),
+        freeCashFlow: null, // Calculated below
+        dividendsPaid: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.dividendsPaid, fy, 'USD'),
+        netChangeInCash: this.extractValue(usGaap, XBRL_TAG_MAPPINGS.netChangeInCash, fy, 'USD'),
+
+        // Book Value Per Share (calculated below)
+        bookValuePerShare: null,
+      };
+
+      // Calculate derived fields
+      // Free Cash Flow = Operating Cash Flow - Capital Expenditures
+      if (statement.operatingCashFlow !== null && statement.capitalExpenditures !== null) {
+        // CapEx is usually reported as positive, so we subtract
+        statement.freeCashFlow = statement.operatingCashFlow - Math.abs(statement.capitalExpenditures);
+      }
+
+      // Book Value Per Share = Total Equity / Shares Outstanding
+      if (statement.totalEquity !== null && statement.sharesOutstanding !== null && statement.sharesOutstanding > 0) {
+        statement.bookValuePerShare = statement.totalEquity / statement.sharesOutstanding;
+      }
+
+      // EPS Fallback: If EPS not reported directly, calculate from NetIncome / SharesOutstanding
+      // WHY? Some companies (like MNST) don't report EarningsPerShareBasic in XBRL consistently
+      if (statement.eps === null && statement.netIncome !== null && statement.sharesOutstanding !== null && statement.sharesOutstanding > 0) {
+        statement.eps = statement.netIncome / statement.sharesOutstanding;
+        logger.debug(`Calculated EPS fallback for ${ticker} FY${fy}: ${statement.eps}`);
+      }
+
+      // Diluted EPS Fallback: Use basic EPS if diluted not available
+      if (statement.epsDiluted === null && statement.eps !== null) {
+        statement.epsDiluted = statement.eps;
+      }
+
+      financials.push(statement);
+    }
+
+    logger.info(`Extracted ${financials.length} years of financials for ${ticker} from SEC XBRL`);
+    return financials;
+  }
+
+  /**
+   * Extract a period value (income statement, cash flow) for a fiscal year
+   *
+   * WHY this approach?
+   * - Income statement items are for a period (start to end)
+   * - We look for 10-K filings with fp='FY'
+   * - Try multiple XBRL tags in priority order
+   */
+  private extractValue(
+    usGaap: Record<string, { units: { USD?: SECFactUnit[]; shares?: SECFactUnit[]; 'USD/shares'?: SECFactUnit[] } }>,
+    tags: readonly string[],
+    fiscalYear: number,
+    unit: 'USD' | 'shares' | 'USD/shares'
+  ): number | null {
+    for (const tag of tags) {
+      const factData = usGaap[tag];
+      if (!factData?.units?.[unit]) continue;
+
+      // Find the 10-K value for this fiscal year
+      const fact = factData.units[unit].find(
+        (f) => f.form === '10-K' && f.fp === 'FY' && f.fy === fiscalYear
+      );
+
+      if (fact) {
+        return fact.val;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract an instant value (balance sheet) for a fiscal year
+   *
+   * WHY this approach?
+   * - Balance sheet items are point-in-time (no start date)
+   * - We look for the value at fiscal year end
+   * - Some items appear in both 10-K and 10-Q, prefer 10-K
+   */
+  private extractInstantValue(
+    usGaap: Record<string, { units: { USD?: SECFactUnit[]; shares?: SECFactUnit[] } }>,
+    tags: readonly string[],
+    fiscalYear: number,
+    unit: 'USD' | 'shares'
+  ): number | null {
+    for (const tag of tags) {
+      const factData = usGaap[tag];
+      if (!factData?.units?.[unit]) continue;
+
+      // For balance sheet items, find the value from 10-K filing
+      // Instant facts have 'end' date but no 'start'
+      const fact = factData.units[unit].find(
+        (f) => f.form === '10-K' && f.fp === 'FY' && f.fy === fiscalYear
+      );
+
+      if (fact) {
+        return fact.val;
+      }
+    }
+
+    return null;
   }
 }
 

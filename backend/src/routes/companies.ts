@@ -4,8 +4,10 @@ import { validateParams, validateQuery } from '../middleware/validateRequest.js'
 import { prisma } from '../config/database.js';
 import { ApiError } from '../middleware/errorHandler.js';
 import { fmpClient } from '../services/fmp/client.js';
+import { secEdgarClient } from '../services/edgar/client.js';
 import { calculateAllScores } from '../calculators/scoring.js';
 import { calculateBigFive } from '../calculators/bigFive.js';
+import { logger } from '../utils/logger.js';
 import type { ApiResponse, CompanyAnalysis } from '../types/api.js';
 
 export const companiesRouter = Router();
@@ -45,15 +47,25 @@ companiesRouter.get(
 
     // If not found or stale, fetch from API
     if (!company || !company.scores.length) {
-      // Fetch from FMP
+      // Fetch company profile from FMP (free tier supports this)
       const profile = await fmpClient.getCompanyProfile(ticker);
       if (!profile) {
         throw ApiError.notFound(`Company ${ticker} not found`);
       }
 
-      const financials = await fmpClient.getFinancialStatements(ticker, 10);
+      // Fetch financial statements from SEC EDGAR (FREE!)
+      // This replaces the paid FMP financial data
+      let financials: Awaited<ReturnType<typeof secEdgarClient.getFinancialStatements>> = [];
+      try {
+        financials = await secEdgarClient.getFinancialStatements(ticker, 10);
+        logger.info(`Fetched ${financials.length} years of financials from SEC EDGAR for ${ticker}`);
+      } catch (error) {
+        logger.warn(`SEC EDGAR data not available for ${ticker}, company may not be US-listed`);
+        financials = [];
+      }
 
       // Upsert company
+      // Note: marketCap field name varies between FMP legacy and stable APIs
       company = await prisma.company.upsert({
         where: { ticker },
         create: {
@@ -61,9 +73,9 @@ companiesRouter.get(
           name: profile.companyName,
           sector: profile.sector,
           industry: profile.industry,
-          exchange: profile.exchangeShortName,
+          exchange: profile.exchangeShortName ?? profile.exchangeFullName ?? profile.exchange,
           description: profile.description,
-          marketCap: profile.mktCap,
+          marketCap: profile.marketCap ?? profile.mktCap,
           country: profile.country,
           website: profile.website,
           lastUpdated: new Date(),
@@ -72,7 +84,7 @@ companiesRouter.get(
           name: profile.companyName,
           sector: profile.sector,
           industry: profile.industry,
-          marketCap: profile.mktCap,
+          marketCap: profile.marketCap ?? profile.mktCap,
           lastUpdated: new Date(),
         },
         include: {
@@ -88,21 +100,62 @@ companiesRouter.get(
         },
       });
 
-      // Store financials
+      // Store financials from SEC EDGAR
+      // First, delete existing annual statements for this company
+      // (Prisma can't handle null in composite unique where clause)
+      await prisma.financialStatement.deleteMany({
+        where: {
+          companyId: company.id,
+          fiscalQuarter: null, // Annual statements only
+        },
+      });
+
+      // Then create all new financial statements
       for (const f of financials) {
-        await prisma.financialStatement.upsert({
-          where: {
-            companyId_fiscalYear_fiscalQuarter: {
-              companyId: company.id,
-              fiscalYear: f.fiscalYear,
-              fiscalQuarter: null,
-            },
-          },
-          create: {
+        await prisma.financialStatement.create({
+          data: {
             companyId: company.id,
-            ...f,
+            fiscalYear: f.fiscalYear,
+            fiscalQuarter: null,
+            periodEndDate: new Date(f.periodEndDate),
+            filingDate: f.filingDate ? new Date(f.filingDate) : null,
+            revenue: f.revenue,
+            costOfRevenue: f.costOfRevenue,
+            grossProfit: f.grossProfit,
+            operatingExpenses: f.operatingExpenses,
+            operatingIncome: f.operatingIncome,
+            interestExpense: f.interestExpense,
+            incomeBeforeTax: f.incomeBeforeTax,
+            incomeTaxExpense: f.incomeTaxExpense,
+            netIncome: f.netIncome,
+            eps: f.eps,
+            epsDiluted: f.epsDiluted,
+            sharesOutstanding: f.sharesOutstanding,
+            cashAndEquivalents: f.cashAndEquivalents,
+            shortTermInvestments: f.shortTermInvestments,
+            totalCurrentAssets: f.totalCurrentAssets,
+            propertyPlantEquip: f.propertyPlantEquip,
+            goodwill: f.goodwill,
+            intangibleAssets: f.intangibleAssets,
+            totalAssets: f.totalAssets,
+            accountsPayable: f.accountsPayable,
+            shortTermDebt: f.shortTermDebt,
+            totalCurrentLiab: f.totalCurrentLiab,
+            longTermDebt: f.longTermDebt,
+            totalLiabilities: f.totalLiabilities,
+            totalEquity: f.totalEquity,
+            bookValuePerShare: f.bookValuePerShare,
+            operatingCashFlow: f.operatingCashFlow,
+            capitalExpenditures: f.capitalExpenditures,
+            freeCashFlow: f.freeCashFlow,
+            dividendsPaid: f.dividendsPaid,
+            netChangeInCash: f.netChangeInCash,
+            // ROIC, ROE, etc. will be calculated by the scoring functions
+            roic: null,
+            roe: null,
+            currentRatio: null,
+            debtToEquity: null,
           },
-          update: f,
         });
       }
 

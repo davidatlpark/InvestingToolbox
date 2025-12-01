@@ -13,29 +13,32 @@ Build a personal web application for value investing analysis based on Warren Bu
 
 ## Implementation Progress
 
-### Completed (Phases 1-7)
+### Completed (Phases 1-8)
 
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | Project Foundation - Backend & Frontend scaffolding |
-| Phase 2 | ✅ Partial | Data Layer - FMP integration done, SEC EDGAR deferred |
+| Phase 2 | ✅ Complete | Data Layer - FMP for profiles/quotes, SEC EDGAR for financials |
 | Phase 3 | ✅ Complete | Calculator Engine - Big Five, Scoring, Valuation |
 | Phase 4 | ✅ Complete | API Routes - All endpoints implemented |
 | Phase 5 | ✅ Complete | Frontend Core Pages - All 4 main pages built |
 | Phase 6 | ✅ Complete | Polish & Testing - 109 backend tests, error handling, responsive UI |
 | Phase 7 | ✅ Complete | Advanced Features - Comparison, CSV export, Alerts, Score History, 24 component tests |
+| Phase 8 | ✅ Complete | FREE Data Migration - SEC EDGAR XBRL for all financial data |
 
 ### What's Built
 
 **Backend:**
 - ✅ Express + TypeScript server with Prisma ORM
 - ✅ PostgreSQL database with full schema
-- ✅ FMP API client for financial data
+- ✅ FMP API client for company profiles, quotes, and search (free tier)
+- ✅ **SEC EDGAR XBRL client for ALL financial data (100% FREE)**
 - ✅ Calculator engine (Big Five, Scoring, Valuation)
 - ✅ All API routes (companies, screener, valuation, watchlist, quotes, filings)
 - ✅ 109 tests (83 unit + 26 integration) with Vitest & Supertest
 - ✅ Historical scores API endpoint for tracking score changes
 - ✅ SEC EDGAR API client with ticker-to-CIK mapping
+- ✅ EPS fallback calculation (NetIncome/SharesOutstanding) for missing XBRL data
 
 **Frontend:**
 - ✅ Vite + React + TypeScript setup
@@ -80,9 +83,26 @@ Build a personal web application for value investing analysis based on Warren Bu
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Scope | Core Features | Stock analysis + screener + leaderboard + watchlist |
-| Data Source | Hybrid | Financial Modeling Prep API + SEC EDGAR for filings |
+| Data Source | **100% FREE** | SEC EDGAR XBRL for financials + FMP free tier for profiles/quotes |
 | Authentication | None | Personal single-user tool |
 | Deployment | TBD | Focus on local development first |
+
+### Data Source Architecture (Updated Nov 2025)
+
+| Data Type | Source | Cost | Notes |
+|-----------|--------|------|-------|
+| Company Profile | FMP (free tier) | FREE | Name, sector, industry, description |
+| Stock Quotes | FMP (free tier) | FREE | Real-time prices |
+| Search | FMP (free tier) | FREE | Company search |
+| **Financial Statements** | **SEC EDGAR XBRL** | **FREE** | Income, Balance Sheet, Cash Flow |
+| **Key Metrics** | **Calculated** | **FREE** | ROIC, ROE, growth rates from SEC data |
+| SEC Filings | SEC EDGAR | FREE | 10-K, 10-Q documents |
+
+**Why SEC EDGAR?**
+- FMP financial data requires $22+/month subscription
+- SEC EDGAR Company Facts API provides all XBRL data for FREE
+- Same official data that FMP sources from
+- No rate limits (just be respectful with request frequency)
 
 ---
 
