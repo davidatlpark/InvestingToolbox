@@ -26,6 +26,7 @@ import { BigFiveChart } from '../components/BigFiveChart';
 import { FinancialsTable } from '../components/FinancialsTable';
 import { ScoreHistoryChart } from '../components/ScoreHistoryChart';
 import { SECFilings } from '../components/SECFilings';
+import { PriceHistoryChart } from '../components/PriceHistoryChart';
 
 // Score Card Component
 function ScoreCard({
@@ -63,13 +64,20 @@ function ScoreCard({
 }
 
 // Big Five Metric Row
+// Supports displaying max-year growth when 10-year data isn't available
 function BigFiveRow({
   label,
   data,
   suffix = '%',
 }: {
   label: string;
-  data: { year1: number | null; year5: number | null; year10: number | null };
+  data: {
+    year1: number | null;
+    year5: number | null;
+    year10: number | null;
+    maxYear?: number | null;
+    maxYearPeriod?: number;
+  };
   suffix?: string;
 }) {
   const formatValue = (val: number | null) => {
@@ -83,6 +91,19 @@ function BigFiveRow({
     if (val >= 0) return 'warning.main';
     return 'error.main';
   };
+
+  // Determine what to show in the 10-year column:
+  // - If year10 exists, show it
+  // - If year10 is null but maxYear exists, show "Xyr: value"
+  // - Otherwise show N/A
+  const hasMaxYear = data.maxYear !== null && data.maxYear !== undefined && data.maxYearPeriod && data.maxYearPeriod > 0;
+  const show10Year = data.year10 !== null;
+  const valueToShow = show10Year ? data.year10 : (hasMaxYear ? data.maxYear : null);
+  const tooltipText = show10Year
+    ? '10-Year Average'
+    : hasMaxYear
+      ? `${data.maxYearPeriod}-Year Average (max available)`
+      : '10-Year Average';
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5, borderBottom: '1px solid #eee' }}>
@@ -100,9 +121,13 @@ function BigFiveRow({
             {formatValue(data.year5)}
           </Typography>
         </Tooltip>
-        <Tooltip title="10-Year Average">
-          <Typography variant="body1" sx={{ color: getColor(data.year10), width: 80, fontWeight: 600 }}>
-            {formatValue(data.year10)}
+        <Tooltip title={tooltipText}>
+          <Typography variant="body1" sx={{ color: getColor(valueToShow ?? null), width: 80, fontWeight: 600 }}>
+            {show10Year
+              ? formatValue(data.year10)
+              : hasMaxYear
+                ? `${data.maxYearPeriod}yr: ${formatValue(data.maxYear ?? null)}`
+                : 'N/A'}
           </Typography>
         </Tooltip>
       </Box>
@@ -269,6 +294,11 @@ function AnalysisPage() {
           <ScoreCard title="Management" score={scores.managementScore} description="Capital allocation" />
         </Grid>
       </Grid>
+
+      {/* Price History Chart - Shows stock price trends over time */}
+      <Box sx={{ mb: 4 }}>
+        <PriceHistoryChart ticker={ticker} />
+      </Box>
 
       <Grid container spacing={3}>
         {/* Big Five Panel */}

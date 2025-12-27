@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateParams, validateQuery } from '../middleware/validateRequest.js';
-import { yahooClient } from '../services/yahoo/client.js';
+import { yahooClient, type PriceRange } from '../services/yahoo/client.js';
 import { ApiError } from '../middleware/errorHandler.js';
 
 export const quotesRouter = Router();
@@ -14,6 +14,48 @@ const tickerParamsSchema = z.object({
 const batchQuerySchema = z.object({
   tickers: z.string().min(1), // Comma-separated list
 });
+
+// Validation schema for historical price range
+const historyQuerySchema = z.object({
+  range: z.enum(['1M', '6M', '1Y', '5Y']).default('1Y'),
+});
+
+/**
+ * GET /api/quotes/:ticker/history - Get historical price data for charting
+ *
+ * WHY a separate endpoint?
+ * - Historical data is large (~250 points for 1Y, ~1260 for 5Y)
+ * - Different caching strategy than real-time quotes
+ * - Users may want different time ranges
+ *
+ * Query params:
+ * - range: '1M' | '6M' | '1Y' | '5Y' (default: '1Y')
+ */
+quotesRouter.get(
+  '/:ticker/history',
+  validateParams(tickerParamsSchema),
+  validateQuery(historyQuerySchema),
+  async (req, res) => {
+    const { ticker } = req.params;
+    const { range } = req.query as { range: PriceRange };
+
+    const prices = await yahooClient.getHistoricalPrices(ticker, range);
+
+    if (!prices || prices.length === 0) {
+      throw ApiError.notFound(`No historical data for ${ticker}`);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ticker,
+        range,
+        prices,
+        fetchedAt: new Date().toISOString(),
+      },
+    });
+  }
+);
 
 // GET /api/quotes/:ticker - Get quote for a single ticker
 // Uses Yahoo Finance for FREE quotes (FMP free tier limits quotes to major stocks)

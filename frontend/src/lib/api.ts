@@ -259,10 +259,34 @@ export interface CompanyAnalysis {
   };
   bigFive: {
     roic: { year1: number | null; year5: number | null; year10: number | null };
-    epsGrowth: { year1: number | null; year5: number | null; year10: number | null };
-    revenueGrowth: { year1: number | null; year5: number | null; year10: number | null };
-    equityGrowth: { year1: number | null; year5: number | null; year10: number | null };
-    fcfGrowth: { year1: number | null; year5: number | null; year10: number | null };
+    epsGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
+    revenueGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
+    equityGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
+    fcfGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
   };
   valuation: {
     stickerPrice: number | null;
@@ -332,6 +356,45 @@ export interface Quote {
   marketCap: number | null;
   pe: number | null;
   eps: number | null;
+  fetchedAt: string;
+}
+
+/**
+ * Time range options for price history chart
+ *
+ * WHY these specific ranges?
+ * - 1M: Short-term price action, recent news impact
+ * - 6M: Medium-term trends
+ * - 1Y: Full year including seasonal patterns
+ * - 5Y: Long-term performance, business cycle
+ */
+export type PriceRange = '1M' | '6M' | '1Y' | '5Y';
+
+/**
+ * Historical price data point for charting
+ *
+ * WHY include adjClose?
+ * - Adjusted close accounts for stock splits and dividends
+ * - Without it, a 4-for-1 split would make old prices appear 4x higher
+ * - Essential for accurate historical comparison
+ */
+export interface HistoricalPrice {
+  date: string; // ISO date string (YYYY-MM-DD)
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  adjClose: number;
+}
+
+/**
+ * Response from the price history endpoint
+ */
+export interface PriceHistoryResponse {
+  ticker: string;
+  range: PriceRange;
+  prices: HistoricalPrice[];
   fetchedAt: string;
 }
 
@@ -487,6 +550,28 @@ export const quotesApi = {
     const response = await api.get<ApiResponse<Quote[]>>('/quotes', {
       params: { tickers: tickers.join(',') },
     });
+    return response.data.data;
+  },
+
+  /**
+   * Get historical price data for charting
+   *
+   * WHY cache for 5 minutes on frontend?
+   * - Historical prices don't change frequently (once per day after market close)
+   * - Reduces API calls when toggling between ranges
+   * - React Query will refetch if user explicitly refreshes
+   *
+   * @param ticker - Stock symbol (e.g., "AAPL")
+   * @param range - Time range: 1M, 6M, 1Y, or 5Y (default: 1Y)
+   */
+  getPriceHistory: async (
+    ticker: string,
+    range: PriceRange = '1Y'
+  ): Promise<PriceHistoryResponse> => {
+    const response = await api.get<ApiResponse<PriceHistoryResponse>>(
+      `/quotes/${ticker}/history`,
+      { params: { range } }
+    );
     return response.data.data;
   },
 };

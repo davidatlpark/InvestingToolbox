@@ -166,4 +166,23 @@ export const mockFactories = {
     currentPrice: 175.5,
     ...overrides,
   }),
+
+  /**
+   * Mock price history data for chart testing
+   *
+   * Returns an array of historical price points with realistic data.
+   */
+  priceHistoryResponse: (overrides = {}) => ({
+    ticker: 'AAPL',
+    range: '1Y' as const,
+    prices: [
+      { date: '2024-01-02', open: 150.0, high: 152.0, low: 149.0, close: 151.0, volume: 50000000, adjClose: 151.0 },
+      { date: '2024-03-15', open: 165.0, high: 168.0, low: 164.0, close: 167.0, volume: 48000000, adjClose: 167.0 },
+      { date: '2024-06-01', open: 175.0, high: 178.0, low: 174.0, close: 176.0, volume: 45000000, adjClose: 176.0 },
+      { date: '2024-09-15', open: 185.0, high: 188.0, low: 184.0, close: 186.0, volume: 52000000, adjClose: 186.0 },
+      { date: '2024-12-20', open: 195.0, high: 198.0, low: 194.0, close: 196.0, volume: 55000000, adjClose: 196.0 },
+    ],
+    fetchedAt: new Date().toISOString(),
+    ...overrides,
+  }),
 };
