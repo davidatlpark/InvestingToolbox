@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Fixed
+- **10-Year Growth N/A**: Show max available years when 10-year data unavailable
+  - Companies with <10 years data now display "6yr: +14.1%" instead of N/A
+  - Tooltip explains it's the max available data
+- **ROIC N/A in Historical Financials**: Calculate and store ROIC for each year
+  - Previously stored as null, now calculated using NOPAT / Invested Capital formula
+  - Each financial statement year shows actual ROIC percentage
+
 ### Added
 - **Stock Price History Chart**: Added interactive price chart to stock analysis page
   - Line chart showing historical closing prices with volume bars below

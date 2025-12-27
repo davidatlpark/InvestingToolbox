@@ -40,6 +40,17 @@ export interface BigFiveMetrics {
   fcfGrowth5Year: number | null;
   fcfGrowth10Year: number | null;
 
+  // Max-year growth (fallback when 10-year isn't available)
+  // These provide growth rates for the maximum years of data available
+  epsGrowthMaxYear: number | null;
+  epsGrowthMaxYearPeriod: number;
+  revenueGrowthMaxYear: number | null;
+  revenueGrowthMaxYearPeriod: number;
+  equityGrowthMaxYear: number | null;
+  equityGrowthMaxYearPeriod: number;
+  fcfGrowthMaxYear: number | null;
+  fcfGrowthMaxYearPeriod: number;
+
   // Meta
   yearsOfData: number;
   isPredictable: boolean;
@@ -152,6 +163,15 @@ export function calculateBigFive(financials: FinancialStatement[]): BigFiveMetri
     fcfGrowth1Year: null,
     fcfGrowth5Year: null,
     fcfGrowth10Year: null,
+    // Max-year growth (fallback when 10-year isn't available)
+    epsGrowthMaxYear: null,
+    epsGrowthMaxYearPeriod: 0,
+    revenueGrowthMaxYear: null,
+    revenueGrowthMaxYearPeriod: 0,
+    equityGrowthMaxYear: null,
+    equityGrowthMaxYearPeriod: 0,
+    fcfGrowthMaxYear: null,
+    fcfGrowthMaxYearPeriod: 0,
     yearsOfData: financials.length,
     isPredictable: true,
   };
@@ -238,6 +258,43 @@ export function calculateBigFive(financials: FinancialStatement[]): BigFiveMetri
   result.fcfGrowth1Year = calculateCAGR(fcf1YearAgo, currentFCF, 1);
   result.fcfGrowth5Year = calculateCAGR(fcf5YearsAgo, currentFCF, 5);
   result.fcfGrowth10Year = calculateCAGR(fcf10YearsAgo, currentFCF, 10);
+
+  // Calculate max-year growth (fallback when 10-year isn't available)
+  // Max years we can calculate = total data points - 1 (need start and end values)
+  const maxYears = sorted.length - 1;
+
+  // Only calculate max-year if:
+  // 1. We have at least 6 years of data (otherwise 5-year already covers it)
+  // 2. The 10-year value is null (otherwise 10-year already exists)
+  if (maxYears >= 6) {
+    // EPS max-year growth
+    if (result.epsGrowth10Year === null) {
+      const oldestEps = getValueAtYear(sorted, maxYears, 'eps');
+      result.epsGrowthMaxYear = calculateCAGR(oldestEps, currentEps, maxYears);
+      result.epsGrowthMaxYearPeriod = maxYears;
+    }
+
+    // Revenue max-year growth
+    if (result.revenueGrowth10Year === null) {
+      const oldestRevenue = getValueAtYear(sorted, maxYears, 'revenue');
+      result.revenueGrowthMaxYear = calculateCAGR(oldestRevenue, currentRevenue, maxYears);
+      result.revenueGrowthMaxYearPeriod = maxYears;
+    }
+
+    // Equity max-year growth
+    if (result.equityGrowth10Year === null) {
+      const oldestEquity = getValueAtYear(sorted, maxYears, 'totalEquity');
+      result.equityGrowthMaxYear = calculateCAGR(oldestEquity, currentEquity, maxYears);
+      result.equityGrowthMaxYearPeriod = maxYears;
+    }
+
+    // FCF max-year growth
+    if (result.fcfGrowth10Year === null) {
+      const oldestFCF = getValueAtYear(sorted, maxYears, 'freeCashFlow');
+      result.fcfGrowthMaxYear = calculateCAGR(oldestFCF, currentFCF, maxYears);
+      result.fcfGrowthMaxYearPeriod = maxYears;
+    }
+  }
 
   // Determine predictability
   // A company is unpredictable if:

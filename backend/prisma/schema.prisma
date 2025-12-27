@@ -136,6 +136,16 @@ model CompanyScore {
   fcfGrowth5Year  Float?
   fcfGrowth10Year Float?
 
+  // Max-year growth (fallback when 10-year isn't available)
+  epsGrowthMaxYear       Float?
+  epsGrowthMaxYearPeriod Int    @default(0)
+  revenueGrowthMaxYear       Float?
+  revenueGrowthMaxYearPeriod Int    @default(0)
+  equityGrowthMaxYear       Float?
+  equityGrowthMaxYearPeriod Int    @default(0)
+  fcfGrowthMaxYear       Float?
+  fcfGrowthMaxYearPeriod Int    @default(0)
+
   // Valuation
   currentPrice Float?
   stickerPrice Float?

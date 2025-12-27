@@ -7,7 +7,7 @@ import { fmpClient } from '../services/fmp/client.js';
 import { secEdgarClient } from '../services/edgar/client.js';
 import { yahooClient } from '../services/yahoo/client.js';
 import { calculateAllScores } from '../calculators/scoring.js';
-import { calculateBigFive } from '../calculators/bigFive.js';
+import { calculateBigFive, calculateROIC } from '../calculators/bigFive.js';
 import { logger } from '../utils/logger.js';
 import type { ApiResponse, CompanyAnalysis } from '../types/api.js';
 
@@ -151,8 +151,16 @@ companiesRouter.get(
             freeCashFlow: f.freeCashFlow,
             dividendsPaid: f.dividendsPaid,
             netChangeInCash: f.netChangeInCash,
-            // ROIC, ROE, etc. will be calculated by the scoring functions
-            roic: null,
+            // Calculate ROIC for each year (requires operating income and invested capital)
+            roic: calculateROIC(
+              f.operatingIncome,
+              f.incomeTaxExpense,
+              f.incomeBeforeTax,
+              f.totalEquity,
+              f.longTermDebt,
+              f.shortTermDebt
+            ),
+            // Other calculated metrics (not yet implemented)
             roe: null,
             currentRatio: null,
             debtToEquity: null,
@@ -248,29 +256,37 @@ companiesRouter.get(
                 year1: score.epsGrowth1Year,
                 year5: score.epsGrowth5Year,
                 year10: score.epsGrowth10Year,
+                maxYear: score.epsGrowthMaxYear,
+                maxYearPeriod: score.epsGrowthMaxYearPeriod,
               },
               revenueGrowth: {
                 year1: score.revenueGrowth1Year,
                 year5: score.revenueGrowth5Year,
                 year10: score.revenueGrowth10Year,
+                maxYear: score.revenueGrowthMaxYear,
+                maxYearPeriod: score.revenueGrowthMaxYearPeriod,
               },
               equityGrowth: {
                 year1: score.equityGrowth1Year,
                 year5: score.equityGrowth5Year,
                 year10: score.equityGrowth10Year,
+                maxYear: score.equityGrowthMaxYear,
+                maxYearPeriod: score.equityGrowthMaxYearPeriod,
               },
               fcfGrowth: {
                 year1: score.fcfGrowth1Year,
                 year5: score.fcfGrowth5Year,
                 year10: score.fcfGrowth10Year,
+                maxYear: score.fcfGrowthMaxYear,
+                maxYearPeriod: score.fcfGrowthMaxYearPeriod,
               },
             }
           : {
               roic: { year1: null, year5: null, year10: null },
-              epsGrowth: { year1: null, year5: null, year10: null },
-              revenueGrowth: { year1: null, year5: null, year10: null },
-              equityGrowth: { year1: null, year5: null, year10: null },
-              fcfGrowth: { year1: null, year5: null, year10: null },
+              epsGrowth: { year1: null, year5: null, year10: null, maxYear: null, maxYearPeriod: 0 },
+              revenueGrowth: { year1: null, year5: null, year10: null, maxYear: null, maxYearPeriod: 0 },
+              equityGrowth: { year1: null, year5: null, year10: null, maxYear: null, maxYearPeriod: 0 },
+              fcfGrowth: { year1: null, year5: null, year10: null, maxYear: null, maxYearPeriod: 0 },
             },
         valuation: score
           ? {

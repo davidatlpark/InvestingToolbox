@@ -62,10 +62,34 @@ export interface CompanyAnalysis {
   };
   bigFive: {
     roic: { year1: number | null; year5: number | null; year10: number | null };
-    epsGrowth: { year1: number | null; year5: number | null; year10: number | null };
-    revenueGrowth: { year1: number | null; year5: number | null; year10: number | null };
-    equityGrowth: { year1: number | null; year5: number | null; year10: number | null };
-    fcfGrowth: { year1: number | null; year5: number | null; year10: number | null };
+    epsGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
+    revenueGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
+    equityGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
+    fcfGrowth: {
+      year1: number | null;
+      year5: number | null;
+      year10: number | null;
+      maxYear: number | null;
+      maxYearPeriod: number;
+    };
   };
   valuation: {
     stickerPrice: number | null;
